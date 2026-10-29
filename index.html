@@ -38,7 +38,7 @@ input[type=text]{width:100%;font:inherit;font-size:18px;padding:12px 14px;border
 input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
 .field{display:flex;flex-direction:column;gap:6px}
 .seg{display:flex;gap:8px;flex-wrap:wrap}
-.seg button{flex:1;min-width:120px;font:inherit;font-size:14px;font-weight:600;padding:10px;border-radius:10px;border:1px solid var(--line);background:#f7f4fb;color:var(--muted);cursor:pointer}
+.seg button{flex:1 1 40%;min-width:120px;font:inherit;font-size:14px;font-weight:600;padding:10px;border-radius:10px;border:1px solid var(--line);background:#f7f4fb;color:var(--muted);cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--soft);color:var(--accent);border-color:var(--accent)}
 .primary{font-family:var(--display);font-size:17px;font-weight:600;padding:14px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
 .primary:disabled{opacity:.45;cursor:not-allowed}
@@ -68,17 +68,33 @@ button:focus-visible{outline:2px solid #ff7ac6;outline-offset:2px}
       <input type="text" id="name" autocomplete="off" autocapitalize="words" placeholder="e.g. Andrea" value="Andrea">
     </div>
     <div class="field">
+      <label id="pronLbl">Colleague is</label>
+      <div class="seg" role="group" aria-labelledby="pronLbl" data-group="pron">
+        <button type="button" id="pron-she" data-val="she" aria-pressed="true">She</button>
+        <button type="button" id="pron-he" data-val="he" aria-pressed="false">He</button>
+      </div>
+    </div>
+    <div class="field">
+      <label id="lvlLbl">Feedback level</label>
+      <div class="seg" role="group" aria-labelledby="lvlLbl" data-group="level">
+        <button type="button" id="lvl-avg" data-val="avg" aria-pressed="false">Average</button>
+        <button type="button" id="lvl-good" data-val="good" aria-pressed="false">Good</button>
+        <button type="button" id="lvl-vgood" data-val="vgood" aria-pressed="true">Very good</button>
+        <button type="button" id="lvl-exc" data-val="exc" aria-pressed="false">Excellent</button>
+      </div>
+    </div>
+    <div class="field">
       <label id="roleLbl">Role on the flight</label>
-      <div class="seg" role="group" aria-labelledby="roleLbl">
-        <button type="button" id="role-cc" data-role="cc" aria-pressed="true">Cabin crew</button>
-        <button type="button" id="role-sccm" data-role="sccm" aria-pressed="false">Senior / SCCM</button>
+      <div class="seg" role="group" aria-labelledby="roleLbl" data-group="role">
+        <button type="button" id="role-cc" data-val="cc" aria-pressed="true">Cabin crew</button>
+        <button type="button" id="role-sccm" data-val="sccm" aria-pressed="false">Senior / SCCM</button>
       </div>
     </div>
     <button class="primary" id="gen" type="submit">Generate feedback</button>
   </form>
 
   <section class="slip" aria-live="polite">
-    <div class="slip-head"><strong id="who">Feedback</strong><span>EN · ~3 lines</span></div>
+    <div class="slip-head"><strong id="who">Feedback</strong><span id="lvlTag">Very good</span></div>
     <div id="out" class="placeholder">Type a name and tap Generate. Each tap writes a new version.</div>
     <div class="actions">
       <button type="button" id="copy" disabled>Copy</button>
@@ -90,54 +106,156 @@ button:focus-visible{outline:2px solid #ff7ac6;outline-offset:2px}
 </div>
 
 <script>
-const OPEN = [
-  "It was a pleasure flying with {n} today.",
-  "{n} was a great colleague to work with on today's duty.",
-  "Really enjoyed operating today's flights with {n}.",
-  "Working with {n} today was easy and enjoyable.",
-  "{n} did a very good job throughout today's duty.",
-  "Great day of flying with {n} on board.",
-  "{n} was a valuable part of the crew today."
-];
-const CC = [
-  "Always professional and well organised, with a calm and friendly approach towards passengers.",
-  "Very helpful during boarding and service, and always ready to support the rest of the crew.",
-  "Followed all safety and security procedures carefully, and the galley was always kept tidy.",
-  "Showed great customer service skills and handled passenger requests with patience and a smile.",
-  "Proactive and reliable, a good team player who communicated clearly with everyone.",
-  "Kept a positive attitude even during the busy turnarounds, and the service ran smoothly.",
-  "Did a great job with onboard sales and was always polite and attentive to passengers.",
-  "Took initiative without needing to be asked and worked well together with the whole crew.",
-  "Very attentive during the safety checks and cabin preparation, everything was done on time."
-];
-const SCCM = [
-  "Gave a clear and well-structured briefing, and kept the whole crew informed during the day.",
-  "Led the crew with a calm and supportive attitude, and the turnarounds ran on time.",
-  "Communicated very well with the flight deck and organised the service efficiently.",
-  "Created a positive atmosphere on board and was always available to help the team.",
-  "Managed the cabin with confidence and paid close attention to safety and procedures.",
-  "Handled passenger situations professionally and made sure everyone knew their tasks.",
-  "Organised the duty very well and gave the crew useful support throughout the day."
-];
-const CLOSE = [
-  "Would be happy to fly together again.",
-  "Hope to share a flight again soon.",
-  "Thank you for a great day!",
-  "A real asset to the team.",
-  "Looking forward to the next flight together.",
-  "Thanks for the great teamwork today."
-];
+// Each strength line is built from two short clauses, so the same sentence rarely comes back.
+const BANK = {
+  avg: {
+    open: [
+      "{n} did a solid job on today's flights.", "Had a good day working with {n}.", "{n} completed all duties well today.",
+      "{n} was a reliable member of the crew today.", "Today's duty with {n} went smoothly.", "{n} carried out all assigned tasks correctly today.",
+      "Worked well with {n} today.", "No issues at all working with {n} today.", "{n} did a decent job throughout the day.",
+      "Today went well with {n} on the crew.", "{n} was a dependable colleague today.", "Good cooperation with {n} on today's duty."
+    ],
+    cc: [
+      "followed the procedures correctly", "completed the safety checks on time", "was polite with passengers",
+      "cooperated well with the rest of the crew", "carried out the service without issues", "kept the galley in order",
+      "communicated with the crew when needed", "was on time for every task", "stayed calm during boarding",
+      "helped passengers with their questions", "did the onboard sales as expected", "supported the team when asked",
+      "kept the cabin tidy", "was ready for each phase of the flight", "handled the trolley service correctly",
+      "respected the turnaround timings"
+    ],
+    sccm: [
+      "gave a clear briefing", "kept the crew informed", "organised the duty correctly", "followed the procedures",
+      "communicated with the flight deck as needed", "kept the turnarounds on time", "supported the crew when required",
+      "managed the cabin properly", "handled the paperwork without issues", "gave everyone clear tasks",
+      "checked that everything was done", "organised the service in a practical way"
+    ],
+    close: [
+      "Thank you for today.", "Thanks for the cooperation.", "Thanks for your work today.", "Good work overall.",
+      "Thanks for the help today.", "All good, thank you.", "Thanks and see you on board.", "Nice working together."
+    ]
+  },
+  good: {
+    open: [
+      "It was nice flying with {n} today.", "{n} did a good job throughout the duty.", "Good day working together with {n}.",
+      "{n} was a pleasant colleague to work with today.", "Enjoyed operating today's sectors with {n}.", "{n} was a good part of the team today.",
+      "Nice duty today with {n} on board.", "{n} was easy to work with today.", "Pleasant day of flying with {n}.",
+      "{n} brought a good attitude to today's duty.", "Today's flights with {n} went really well.", "Happy to have worked with {n} today."
+    ],
+    cc: [
+      "was professional and friendly with passengers", "was a good team player", "helped a lot during boarding",
+      "was always ready to support the crew", "followed the safety procedures carefully", "kept the cabin well organised",
+      "communicated well with the crew", "kept a positive attitude throughout", "handled passenger requests politely",
+      "kept the galley tidy", "made sure the service ran smoothly", "showed good initiative during the turnarounds",
+      "stayed friendly even on the busier sectors", "worked well with everyone on board", "paid good attention to the passengers' needs",
+      "did a nice job with onboard sales"
+    ],
+    sccm: [
+      "gave a well-structured briefing", "led the crew in a friendly way", "communicated well with the flight deck",
+      "kept the cabin crew well informed", "organised the service efficiently", "was available to help the team",
+      "managed the cabin calmly", "paid attention to safety", "created a positive atmosphere",
+      "kept the day running smoothly", "made sure everyone knew their tasks", "supported the crew when needed"
+    ],
+    close: [
+      "Thanks for the good teamwork.", "Would be happy to fly together again.", "Thank you for a nice day.", "Keep it up!",
+      "Thanks for a smooth duty.", "Hope to see you on board again.", "Nice teamwork today.", "Thanks for everything today."
+    ]
+  },
+  vgood: {
+    open: [
+      "Really enjoyed flying with {n} today.", "{n} did a very good job on all sectors today.", "Working with {n} today was a real pleasure.",
+      "{n} was a great colleague throughout the duty.", "Very happy to have had {n} on the crew today.", "{n} made today's duty easy and enjoyable.",
+      "Great day of flying with {n}.", "{n} was a great addition to today's crew.", "Had a really good duty with {n}.",
+      "{n} did really well today from start to finish.", "Today was a great day thanks to {n}.", "{n} was a pleasure to work with on every sector."
+    ],
+    cc: [
+      "was very professional with passengers", "was always kind and attentive", "was proactive and reliable",
+      "supported the crew without needing to be asked", "was very careful with safety and security", "kept the galley very well organised",
+      "showed great customer service skills", "kept a lovely, positive attitude", "communicated clearly with everyone",
+      "kept a great team spirit on board", "made the busy turnarounds feel easy", "did a great job with onboard sales",
+      "stayed calm and precise even when things got busy", "always had a smile for the passengers", "took care of every detail in the cabin",
+      "was quick to help wherever needed"
+    ],
+    sccm: [
+      "gave a very clear briefing", "coordinated the crew very well all day", "led the team with a calm, supportive attitude",
+      "communicated excellently with everyone", "managed the turnarounds very efficiently", "kept everyone informed at every stage",
+      "was very attentive to safety", "was always ready to support the crew", "created a great atmosphere on board",
+      "kept high standards all day", "worked very well with the flight deck", "organised the service really well"
+    ],
+    close: [
+      "Hope to fly together again soon.", "Thanks for the great teamwork!", "A real asset to the crew.", "Looking forward to the next one.",
+      "Thanks for a great day on board.", "Great job, thank you!", "Would gladly fly together again.", "Thanks for making the day easy."
+    ]
+  },
+  exc: {
+    open: [
+      "{n} was outstanding throughout today's duty.", "It was an absolute pleasure flying with {n} today.", "{n} is one of the best colleagues I have flown with.",
+      "Excellent day of flying with {n}.", "{n} did an exceptional job on every sector today.", "Couldn't have asked for a better colleague than {n} today.",
+      "Flying with {n} today was a fantastic experience.", "{n} was simply brilliant today.", "What a great duty with {n} on board.",
+      "{n} set the standard for the whole crew today.", "Top marks for {n} on today's duty.", "{n} made today one of the best duties in a long time."
+    ],
+    cc: [
+      "gave exceptional customer service", "was warm with every passenger", "anticipated what the crew needed",
+      "was always one step ahead", "paid outstanding attention to safety and procedures", "was a real example for the team",
+      "brought fantastic energy on board", "kept everyone motivated", "handled every passenger situation with confidence and kindness",
+      "showed flawless teamwork from the briefing to the last sector", "did remarkable onboard sales", "kept the galley and cabin perfect all day",
+      "turned even the difficult moments into easy ones", "made passengers feel truly welcome", "never stopped smiling, even on the longest sector",
+      "went above and beyond for the crew and the passengers"
+    ],
+    sccm: [
+      "showed outstanding leadership", "was calm, clear and always supportive", "gave an excellent briefing",
+      "coordinated perfectly with the flight deck", "made every crew member feel valued", "created a fantastic atmosphere",
+      "managed the whole duty brilliantly", "handled even the tightest turnarounds with ease", "was a true role model on safety and service",
+      "was always one step ahead", "inspired the whole team", "kept the crew relaxed and focused at the same time"
+    ],
+    close: [
+      "Would love to share a duty again anytime!", "Thank you for an amazing day!", "A real role model for the crew.",
+      "Hope to fly together again very soon!", "Simply the best, thank you!", "An absolute star!",
+      "Can't wait for the next duty together.", "Huge thanks for a perfect day!"
+    ]
+  }
+};
+const LEADS = ["{P} ", "On board, {p} ", "During the flights, {p} ", "Throughout the day, {p} ", "All day long, {p} ", "From start to finish, {p} "];
+const LEVEL_NAMES = {avg:"Average", good:"Good", vgood:"Very good", exc:"Excellent"};
 
-let role = "cc", last = "";
+let role = "cc", level = "vgood", pron = "she", last = "";
 const $ = id => document.getElementById(id);
-const pick = a => a[Math.floor(Math.random()*a.length)];
+
+// Remembers recently used phrases on this phone and avoids them,
+// so feedback for different colleagues stays different over weeks.
+const MEM_KEY = "crewFeedbackRecent";
+let recent = {};
+try { recent = JSON.parse(localStorage.getItem(MEM_KEY) || "{}"); } catch(_) { recent = {}; }
+function saveRecent(){ try { localStorage.setItem(MEM_KEY, JSON.stringify(recent)); } catch(_) {} }
+function pickFresh(key, arr, exclude = []){
+  const used = recent[key] || [];
+  let pool = arr.filter(x => !used.includes(x) && !exclude.includes(x));
+  if (!pool.length) pool = arr.filter(x => !exclude.includes(x));
+  const choice = pool[Math.floor(Math.random()*pool.length)];
+  const keep = Math.floor(arr.length * 0.6);
+  recent[key] = [choice, ...used.filter(x => x !== choice)].slice(0, keep);
+  return choice;
+}
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const also = c => c.startsWith("was ") ? "was also " + c.slice(4) : "also " + c;
 const clean = s => s.trim().replace(/\s+/g," ").replace(/^./, c => c.toUpperCase());
 
+// Three shapes so the ending is not always the same:
+// opening + strengths + closing, opening + strengths + an extra point, or opening + strengths only.
 function build(name){
+  const b = BANK[level], k = level + "-" + role, list = b[role];
   let text, tries = 0;
   do {
-    text = [pick(OPEN), pick(role === "sccm" ? SCCM : CC), pick(CLOSE)].join(" ").replaceAll("{n}", name);
+    const c1 = pickFresh(k, list), c2 = pickFresh(k, list, [c1]);
+    const parts = [
+      pickFresh(level + "-open", b.open),
+      cap(pickFresh("lead", LEADS) + c1 + " and " + c2 + ".")
+    ];
+    const r = Math.random();
+    if (r < 0.4) parts.push(pickFresh(level + "-close", b.close));
+    else if (r < 0.75) parts.push("{P} " + also(pickFresh(k, list, [c1, c2])) + ".");
+    text = parts.join(" ").replaceAll("{n}", name).replaceAll("{P}", cap(pron)).replaceAll("{p}", pron);
   } while (text === last && ++tries < 10);
+  saveRecent();
   last = text; return text;
 }
 function generate(){
@@ -146,6 +264,7 @@ function generate(){
   $("out").textContent = build(name);
   $("out").classList.remove("placeholder");
   $("who").textContent = "Feedback for " + name;
+  $("lvlTag").textContent = LEVEL_NAMES[level];
   $("copy").disabled = $("again").disabled = false;
   resetCopy();
 }
@@ -154,11 +273,14 @@ function resetCopy(){ $("copy").textContent = "Copy"; $("copy").classList.remove
 $("form").addEventListener("submit", e => { e.preventDefault(); generate(); });
 $("again").addEventListener("click", generate);
 $("name").addEventListener("input", () => { $("gen").disabled = !$("name").value.trim(); });
-document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
-  role = b.dataset.role;
-  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  if(!$("out").classList.contains("placeholder")) generate();
-}));
+document.querySelectorAll(".seg").forEach(group => {
+  group.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    const g = group.dataset.group, v = b.dataset.val;
+    if (g === "role") role = v; else if (g === "pron") pron = v; else level = v;
+    group.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    if(!$("out").classList.contains("placeholder")) generate();
+  }));
+});
 $("copy").addEventListener("click", async () => {
   const text = $("out").textContent;
   try { await navigator.clipboard.writeText(text); }
