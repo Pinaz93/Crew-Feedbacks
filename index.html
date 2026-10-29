@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2b1a5c">
+<meta name="apple-mobile-web-app-title" content="Feedback">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Crew Feedback Writer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600&display=swap">
+<style>
+/* Layout: single narrow column, form card on top, generated note below like a duty report slip */
+:root{
+  --bg:#2b1a5c; --surface:#ffffff; --ink:#24164d; --muted:#6b5f8f; --line:#e3dcf0;
+  --accent:#c6007e; --accent-ink:#ffffff; --soft:#fbe3f1; --ok:#1e8a5a;
+  --head:#ffffff; --head-muted:#d9cdf5;
+  --display:"Sora",system-ui,sans-serif; --body:"Manrope",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 40px}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--head-muted);font-weight:600}
+h1{color:var(--head);font-family:var(--display);font-size:28px;line-height:1.15;margin:4px 0 0;text-wrap:balance}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+label{font-weight:600;font-size:14px}
+input[type=text]{width:100%;font:inherit;font-size:18px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#f7f4fb;color:var(--ink)}
+input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.field{display:flex;flex-direction:column;gap:6px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1;min-width:120px;font:inherit;font-size:14px;font-weight:600;padding:10px;border-radius:10px;border:1px solid var(--line);background:#f7f4fb;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--soft);color:var(--accent);border-color:var(--accent)}
+.primary{font-family:var(--display);font-size:17px;font-weight:600;padding:14px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible{outline:2px solid #ff7ac6;outline-offset:2px}
+.slip{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.slip-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px dashed var(--line);font-size:13px;color:var(--muted)}
+.slip-head strong{color:var(--ink);font-family:var(--display);font-size:15px}
+#out{padding:16px 18px;font-size:16px;min-height:96px;white-space:pre-wrap}
+#out.placeholder{color:var(--muted)}
+.actions{display:flex;gap:8px;padding:0 18px 16px}
+.actions button{flex:1;font:inherit;font-weight:600;font-size:15px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#f7f4fb;color:var(--ink);cursor:pointer}
+.actions button.done{color:var(--ok);border-color:var(--ok)}
+.note{font-size:13px;color:var(--head-muted)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">After duty · crew feedback</div>
+    <h1>Crew Feedback Writer</h1>
+  </header>
+
+  <form class="card" id="form">
+    <div class="field">
+      <label for="name">Colleague's first name</label>
+      <input type="text" id="name" autocomplete="off" autocapitalize="words" placeholder="e.g. Andrea" value="Andrea">
+    </div>
+    <div class="field">
+      <label id="roleLbl">Role on the flight</label>
+      <div class="seg" role="group" aria-labelledby="roleLbl">
+        <button type="button" id="role-cc" data-role="cc" aria-pressed="true">Cabin crew</button>
+        <button type="button" id="role-sccm" data-role="sccm" aria-pressed="false">Senior / SCCM</button>
+      </div>
+    </div>
+    <button class="primary" id="gen" type="submit">Generate feedback</button>
+  </form>
+
+  <section class="slip" aria-live="polite">
+    <div class="slip-head"><strong id="who">Feedback</strong><span>EN · ~3 lines</span></div>
+    <div id="out" class="placeholder">Type a name and tap Generate. Each tap writes a new version.</div>
+    <div class="actions">
+      <button type="button" id="copy" disabled>Copy</button>
+      <button type="button" id="again" disabled>Another version</button>
+    </div>
+  </section>
+
+  <p class="note">Only positive comments, written to sound natural. Read it once before pasting.</p>
+</div>
+
+<script>
+const OPEN = [
+  "It was a pleasure flying with {n} today.",
+  "{n} was a great colleague to work with on today's duty.",
+  "Really enjoyed operating today's flights with {n}.",
+  "Working with {n} today was easy and enjoyable.",
+  "{n} did a very good job throughout today's duty.",
+  "Great day of flying with {n} on board.",
+  "{n} was a valuable part of the crew today."
+];
+const CC = [
+  "Always professional and well organised, with a calm and friendly approach towards passengers.",
+  "Very helpful during boarding and service, and always ready to support the rest of the crew.",
+  "Followed all safety and security procedures carefully, and the galley was always kept tidy.",
+  "Showed great customer service skills and handled passenger requests with patience and a smile.",
+  "Proactive and reliable, a good team player who communicated clearly with everyone.",
+  "Kept a positive attitude even during the busy turnarounds, and the service ran smoothly.",
+  "Did a great job with onboard sales and was always polite and attentive to passengers.",
+  "Took initiative without needing to be asked and worked well together with the whole crew.",
+  "Very attentive during the safety checks and cabin preparation, everything was done on time."
+];
+const SCCM = [
+  "Gave a clear and well-structured briefing, and kept the whole crew informed during the day.",
+  "Led the crew with a calm and supportive attitude, and the turnarounds ran on time.",
+  "Communicated very well with the flight deck and organised the service efficiently.",
+  "Created a positive atmosphere on board and was always available to help the team.",
+  "Managed the cabin with confidence and paid close attention to safety and procedures.",
+  "Handled passenger situations professionally and made sure everyone knew their tasks.",
+  "Organised the duty very well and gave the crew useful support throughout the day."
+];
+const CLOSE = [
+  "Would be happy to fly together again.",
+  "Hope to share a flight again soon.",
+  "Thank you for a great day!",
+  "A real asset to the team.",
+  "Looking forward to the next flight together.",
+  "Thanks for the great teamwork today."
+];
+
+let role = "cc", last = "";
+const $ = id => document.getElementById(id);
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const clean = s => s.trim().replace(/\s+/g," ").replace(/^./, c => c.toUpperCase());
+
+function build(name){
+  let text, tries = 0;
+  do {
+    text = [pick(OPEN), pick(role === "sccm" ? SCCM : CC), pick(CLOSE)].join(" ").replaceAll("{n}", name);
+  } while (text === last && ++tries < 10);
+  last = text; return text;
+}
+function generate(){
+  const name = clean($("name").value);
+  if(!name){ $("name").focus(); return; }
+  $("out").textContent = build(name);
+  $("out").classList.remove("placeholder");
+  $("who").textContent = "Feedback for " + name;
+  $("copy").disabled = $("again").disabled = false;
+  resetCopy();
+}
+function resetCopy(){ $("copy").textContent = "Copy"; $("copy").classList.remove("done"); }
+
+$("form").addEventListener("submit", e => { e.preventDefault(); generate(); });
+$("again").addEventListener("click", generate);
+$("name").addEventListener("input", () => { $("gen").disabled = !$("name").value.trim(); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  role = b.dataset.role;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if(!$("out").classList.contains("placeholder")) generate();
+}));
+$("copy").addEventListener("click", async () => {
+  const text = $("out").textContent;
+  try { await navigator.clipboard.writeText(text); }
+  catch(_) { const r = document.createRange(); r.selectNodeContents($("out")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $("copy").textContent = "Selected, copy it"; return; }
+  $("copy").textContent = "Copied"; $("copy").classList.add("done");
+});
+
+generate();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
